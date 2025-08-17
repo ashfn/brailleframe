@@ -2,6 +2,11 @@
 
 **BrailleFrame** displays videos in the terminal using FFmpeg and Braille characters.
 
+Click below to see a demo on youtube
+
+[![Demo](https://img.youtube.com/vi/Fuqz65VwXKM/0.jpg)](https://www.youtube.com/watch?v=Fuqz65VwXKM)
+
+
 ### Features
 
 - Converts videos into terminal-friendly Braille frames  
