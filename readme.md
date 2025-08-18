@@ -28,19 +28,20 @@ g++ bframe.cpp -o bframe -std=c++20
 ```
 ### Usage
 ```
-./bframe <FILE> <WIDTH> <HEIGHT> [--nocolor]
+./bframe <FILE> <WIDTH> <HEIGHT> [--nocolor] [--fps=]
 
 ```
 
 ### Example
 ```
-./bframe input.mp4 300 300
+./bframe input.mp4 300 300 --fps=24
 ```
 
 ## Notes
 - Make sure your terminal font supports Braille characters.  
 - Adjust terminal size or font size for optimal display.  
 - You will have a much better experience with the --nocolor version because it does not need to use 'persistence of vision' by swapping out the dots shown repeatedly to change their colors
+- If your video is playing too fast you need to change the --fps value to match the content you're using
 
 ## Inspiration
 This project builds upon my Braille Conway's Game of Life:  

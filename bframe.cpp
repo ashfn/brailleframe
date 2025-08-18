@@ -1,20 +1,18 @@
 #include <iostream>
-#include <sys/ioctl.h>
-#include <unistd.h>
 #include <bitset>
 #include <vector>
-#include <random>
 #include <chrono>
 #include <thread>
 #include <fstream>
 #include <thread>
 #include <atomic>
+#include <cstring>
 
 typedef std::vector<std::vector<uint8_t> > map_t;
 
-int WIDTH = 300;
-int HEIGHT = 300;
-int FPS = 200;
+int WIDTH = 100;
+int HEIGHT = 100;
+int FPS = 30;
 
 uint8_t rgb_to_xterm256(uint8_t r, uint8_t g, uint8_t b) {
     float gamma = 0.7f;
@@ -186,16 +184,22 @@ int main(int argc, char* argv[]){
   }
 
   if (argc < 4) {
-      std::cerr << "Usage: " << argv[0] << " <filename> <width> <height>\n";
+      std::cerr << " <filename> <width> <height> [--nocolor] [--fps=X]\n";
       return 1;
   }
 
   bool color = true;
-
-  if(argc==5 && strcmp(argv[4], "--nocolor") == 0){
-      color=false;
+  for (int i = 4; i < argc; i++) {
+      if (strcmp(argv[i], "--nocolor") == 0) {
+          color = false;
+      } else if (strncmp(argv[i], "--fps=", 6) == 0) {
+          FPS = std::stoi(argv[i] + 6);
+      } else {
+          std::cerr << "Unknown option: " << argv[i] << "\n";
+          return 1;
+      }
   }
-  
+
   std::string filename = argv[1];
   int width = std::stoi(argv[2]);
   int height = std::stoi(argv[3]);
