@@ -14,17 +14,31 @@ typedef std::vector<std::vector<uint8_t> > map_t;
 
 int WIDTH = 300;
 int HEIGHT = 300;
-int FPS = 30;
+int FPS = 200;
 
 uint8_t rgb_to_xterm256(uint8_t r, uint8_t g, uint8_t b) {
-    if (r == g && g == b) {
-        if (r < 8) return 16;
-        if (r > 248) return 231;
-        return 232 + (r - 8) / 10;
+    float gamma = 0.7f;
+    r = (uint8_t)(255.0f * pow(r / 255.0f, gamma));
+    g = (uint8_t)(255.0f * pow(g / 255.0f, gamma));
+    b = (uint8_t)(255.0f * pow(b / 255.0f, gamma));
+    
+    int max_diff = std::max({abs(r-g), abs(g-b), abs(r-b)});
+    
+    if (max_diff < 15) {
+        uint8_t gray = (r + g + b) / 3;
+        if (gray < 8) return 16;
+        if (gray > 238) return 231;
+        return 232 + (uint8_t)((gray - 8) * 23.0f / 230.0f + 0.5f);
     }
-    int ri = r * 5 / 255;
-    int gi = g * 5 / 255;
-    int bi = b * 5 / 255;
+    
+    int ri = (r * 5 + 127) / 255;
+    int gi = (g * 5 + 127) / 255;
+    int bi = (b * 5 + 127) / 255;
+    
+    ri = std::max(0, std::min(5, ri));
+    gi = std::max(0, std::min(5, gi));
+    bi = std::max(0, std::min(5, bi));
+    
     return 16 + 36 * ri + 6 * gi + bi;
 }
 
@@ -41,19 +55,44 @@ void printBraille(uint8_t color, uint8_t pos, std::string &buf){
   lastCol=color;
 }
 
-void printMap(map_t* map, int t){
+void printMap(map_t* map, int t, bool color){
   std::string buf;
   buf.reserve((WIDTH/2) * (HEIGHT/4) * 8);
-  for(int r=0; r<HEIGHT; r+=4){
-    for(int c=0; c<WIDTH; c+=2){
-      int i = (t) % 8;
-      int row = r+(i / 2);
-      int col = c+(i % 2);
-      printBraille((*map)[row][col],i,buf);
+  if(color){
+    for(int r=0; r<HEIGHT; r+=4){
+      for(int c=0; c<WIDTH; c+=2){
+        int i = (t) % 8;
+        int row = r+(i / 2);
+        int col = c+(i % 2);
+        printBraille((*map)[row][col],i,buf);
+      }
+      buf+="\n";
+      lastCol=-1;
     }
-    buf+="\n";
-    lastCol=-1;
+  }else{
+    for(int r=0; r<HEIGHT; r+=4){
+      for(int c=0; c<WIDTH; c+=2){
+        uint8_t values[8] = {0,3,1,4,2,5,6,7};
+        std::bitset<8> braille(0);
+        for(int i=0; i<8; i++){
+          int row = r+(i / 2);
+          int col = c+(i % 2);
+          if((*map)[row][col]==1){
+            braille[values[i]]=1;
+          }
+        }
+        uint8_t sum = braille.to_ullong();
+        char utf8[4] = {0};
+        uint16_t codepoint = 0x2800 + sum;
+        utf8[0] = 0xE2;
+        utf8[1] = 0x80 | ((codepoint >> 6) & 0x3F);
+        utf8[2] = 0x80 | (codepoint & 0x3F);
+        buf+=utf8;
+      }
+      buf+="\n";
+    }
   }
+
   std::cout.write(buf.data(), buf.size());
 }
 
@@ -85,22 +124,22 @@ map_t buffer1;
 map_t buffer2;
 std::atomic<map_t*> currentMap = &buffer1;
 
-void displayLoop(std::atomic<map_t*>& readMapPtr){
+void displayLoop(std::atomic<map_t*>& readMapPtr, bool color){
   int t=0;
   while(1){
     map_t* mapToDisplay = readMapPtr.load(std::memory_order_acquire);
-    printMap(mapToDisplay, t);
+    printMap(mapToDisplay, t, color);
     std::this_thread::sleep_for(std::chrono::milliseconds(4));
     std::cout << "\x1B[2J\x1B[H" << std::flush;
     t++;
   }
 }
 
-void loadLoop(std::string filename, int width, int height){
+void loadLoop(std::string filename, int width, int height, bool color){
   map_t* writeMap = &buffer2;
   std::string cmd = "ffmpeg -i \"" + filename + "\" -vf \"scale=" +
                     std::to_string(width) + ":" + std::to_string(height) +
-                    ",setsar=1,fps=15\" -f rawvideo -pix_fmt rgb24 -";
+                    ",setsar=1,eq=gamma=1.5:saturation=1.3\" -f rawvideo -pix_fmt rgb24 -";
   FILE *pipe = popen(
       cmd.c_str(),
       "r"
@@ -113,12 +152,20 @@ void loadLoop(std::string filename, int width, int height){
     for (int y = 0; y < HEIGHT; ++y) {
         for (int x = 0; x < WIDTH; ++x) {
             size_t idx = (y * WIDTH + x) * 3;
-            (*writeMap)[y][x] = rgb_to_xterm256(frame[idx], frame[idx + 1], frame[idx + 2]);
+            if (color) {
+                // Use original 8-bit color conversion
+                (*writeMap)[y][x] = rgb_to_xterm256(frame[idx], frame[idx + 1], frame[idx + 2]);
+            } else {
+                // Convert to binary: 0 for black, 1 for white
+                // Calculate luminance using standard weights
+                float luminance = 0.299f * frame[idx] + 0.587f * frame[idx + 1] + 0.114f * frame[idx + 2];
+                (*writeMap)[y][x] = (luminance > 127.5f) ? 1 : 0;
+            }
         }
     }
     map_t* old = currentMap.exchange(writeMap, std::memory_order_release);
     writeMap = old;
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000/FPS));
+    std::this_thread::sleep_until(std::chrono::steady_clock::now() + std::chrono::microseconds(1000000/FPS));  
   }
 }
 
@@ -143,6 +190,12 @@ int main(int argc, char* argv[]){
       return 1;
   }
 
+  bool color = true;
+
+  if(argc==5 && strcmp(argv[4], "--nocolor") == 0){
+      color=false;
+  }
+  
   std::string filename = argv[1];
   int width = std::stoi(argv[2]);
   int height = std::stoi(argv[3]);
@@ -153,8 +206,8 @@ int main(int argc, char* argv[]){
   buffer1 = map_t(HEIGHT, std::vector<uint8_t>(WIDTH));
   buffer2 = map_t(HEIGHT, std::vector<uint8_t>(WIDTH));
 
-  std::thread t1(loadLoop, filename, width, height);
-  std::thread t2(displayLoop, std::ref(currentMap));
+  std::thread t1(loadLoop, filename, width, height, color);
+  std::thread t2(displayLoop, std::ref(currentMap), color);
 
 
   t1.join();

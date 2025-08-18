@@ -4,7 +4,7 @@
 
 Click below to see a demo on youtube
 
-[![Demo](https://img.youtube.com/vi/Fuqz65VwXKM/0.jpg)](https://www.youtube.com/watch?v=Fuqz65VwXKM)
+[![Demo](demo.gif)](https://www.youtube.com/watch?v=Fuqz65VwXKM)
 
 
 ### Features
@@ -28,7 +28,8 @@ g++ bframe.cpp -o bframe -std=c++20
 ```
 ### Usage
 ```
-./bframe <FILE> <WIDTH> <HEIGHT>
+./bframe <FILE> <WIDTH> <HEIGHT> [--nocolor]
+
 ```
 
 ### Example
@@ -39,7 +40,7 @@ g++ bframe.cpp -o bframe -std=c++20
 ## Notes
 - Make sure your terminal font supports Braille characters.  
 - Adjust terminal size or font size for optimal display.  
-- Playback is smoother on fast terminal emulators like [kitty](https://sw.kovidgoyal.net/kitty/).  
+- You will have a much better experience with the --nocolor version because it does not need to use 'persistence of vision' by swapping out the dots shown repeatedly to change their colors
 
 ## Inspiration
 This project builds upon my Braille Conway's Game of Life:  
