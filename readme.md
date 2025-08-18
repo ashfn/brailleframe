@@ -24,7 +24,7 @@ Click below to see a demo on youtube
 ### Compilation
 
 ```bash
-g++ bframe.cpp -o bframe -std=c++20
+make
 ```
 ### Usage
 ```
