@@ -7,6 +7,8 @@
 #include <thread>
 #include <atomic>
 #include <cstring>
+#include <cmath>
+#include <algorithm>
 
 typedef std::vector<std::vector<uint8_t> > map_t;
 
