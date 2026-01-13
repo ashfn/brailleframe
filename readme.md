@@ -2,7 +2,7 @@
 
 **BrailleFrame** displays videos in the terminal using FFmpeg and Braille characters.
 
-Click below to see a demo on youtube
+Click below to see a demo with colour for each dot on youtube
 
 [![Demo](demo.gif)](https://www.youtube.com/watch?v=Fuqz65VwXKM)
 
